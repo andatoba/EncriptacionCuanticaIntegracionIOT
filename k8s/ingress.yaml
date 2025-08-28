@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: quantum-access-ingress
+  namespace: quantum-access-control
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - host: quantum-access.local
+    http:
+      paths:
+      - path: /orion
+        pathType: Prefix
+        backend:
+          service:
+            name: orion-context-broker
+            port:
+              number: 1026
+      - path: /nifi
+        pathType: Prefix
+        backend:
+          service:
+            name: apache-nifi
+            port:
+              number: 8080
+      - path: /draco
+        pathType: Prefix
+        backend:
+          service:
+            name: draco
+            port:
+              number: 5050
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
+      - path: /prometheus
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus
+            port:
+              number: 9090

@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: esp32-simulator-code
+  namespace: quantum-access-control
+data:
+  esp32_simulator.py: |
+    #!/usr/bin/env python3
+    import json
+    import time
+    import random
+    import logging
+    import paho.mqtt.client as mqtt
+    from datetime import datetime
+    import os
+
+    # Set up logging
+    logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO'),
+                      format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger('esp32-simulator')
+
+    # Load configuration
+    with open('/app/config/config.json', 'r') as f:
+        config = json.load(f)
+
+    mqtt_broker = config.get('mqtt_broker', 'localhost')
+    mqtt_port = config.get('mqtt_port', 1883)
+    mqtt_topic = config.get('mqtt_topic', 'qsensor/rfid')
+    device_id = config.get('device_id', 'esp32-rfid-1')
+    simulation_interval_ms = config.get('simulation_interval_ms', 5000)
+
+    # BB84 protocol simulation
+    def generate_random_bits(num_bits):
+        return [random.randint(0, 1) for _ in range(num_bits)]
+
+    def generate_random_bases(num_bases):
+        return [random.randint(0, 1) for _ in range(num_bases)]
+
+    def xor_encrypt(data, key):
+        # Convert data string to binary
+        data_binary = ''.join(format(ord(c), '08b') for c in data)
+        
+        # Adjust key length
+        full_key = key * (len(data_binary) // len(key)) + key[:len(data_binary) % len(key)]
+        
+        # XOR encryption
+        encrypted = ''.join(str(int(d) ^ int(k)) for d, k in zip(data_binary, full_key))
+        return encrypted
+
+    def generate_card_uid():
+        # Generate a random UID similar to RFID cards (8 hex characters)
+        return ''.join(random.choices('0123456789abcdef', k=8))
+
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            logger.info("Connected to MQTT broker")
+        else:
+            logger.error(f"Failed to connect to MQTT broker with result code {rc}")
+
+    def on_disconnect(client, userdata, rc):
+        if rc != 0:
+            logger.warning(f"Unexpected disconnection from MQTT broker: {rc}")
+
+    def on_publish(client, userdata, mid):
+        logger.debug(f"Message published with ID: {mid}")
+
+    def simulate_rfid_scan():
+        # Simulate BB84 protocol
+        alice_bits = generate_random_bits(8)
+        alice_bases = generate_random_bases(8)
+        
+        # Generate a random card UID
+        card_uid = generate_card_uid()
+        
+        # Create data payload
+        data = {
+            'card_id': card_uid,
+            'timestamp': datetime.now().isoformat(),
+            'alice_bits': alice_bits,
+            'alice_bases': alice_bases,
+        }
+        
+        # Convert to JSON
+        json_data = json.dumps(data)
+        
+        # Simple encryption (in a real system this would be quantum-secured)
+        shared_key = '01101101'  # This would be derived from BB84 in a real system
+        encrypted_data = xor_encrypt(json_data, shared_key)
+        
+        # Create message
+        message = {
+            'data': encrypted_data,
+            'device_id': device_id
+        }
+        
+        return json.dumps(message)
+
+    # Set up MQTT client
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
+    client.on_publish = on_publish
+
+    try:
+        logger.info(f"Connecting to MQTT broker at {mqtt_broker}:{mqtt_port}")
+        client.connect(mqtt_broker, mqtt_port, 60)
+        client.loop_start()
+        
+        while True:
+            try:
+                # Simulate RFID card scan
+                message = simulate_rfid_scan()
+                
+                # Publish to MQTT
+                result = client.publish(mqtt_topic, message, qos=1)
+                if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                    logger.info(f"Sent data to topic {mqtt_topic}")
+                else:
+                    logger.error(f"Failed to send message: {result}")
+                
+                # Wait for next simulation
+                time.sleep(simulation_interval_ms / 1000)
+                
+            except Exception as e:
+                logger.error(f"Error in simulation loop: {e}")
+                time.sleep(5)  # Wait before retrying
+                
+    except KeyboardInterrupt:
+        logger.info("Stopping simulation")
+        client.loop_stop()
+        client.disconnect()
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        client.loop_stop()
+        client.disconnect()

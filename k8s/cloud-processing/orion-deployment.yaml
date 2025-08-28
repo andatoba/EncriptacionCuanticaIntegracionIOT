@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-context-broker
+  namespace: quantum-access-control
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orion-context-broker
+  template:
+    metadata:
+      labels:
+        app: orion-context-broker
+    spec:
+      containers:
+      - name: orion
+        image: fiware/orion:2.6.0
+        ports:
+        - containerPort: 1026
+        command: ["orion", "-dbhost", "mongodb", "-logLevel", "INFO", "-dbTimeout", "10000", "-maxConnections", "10"]
+        resources:
+          limits:
+            memory: 300Mi
+            cpu: 200m
+          requests:
+            memory: 150Mi
+            cpu: 50m

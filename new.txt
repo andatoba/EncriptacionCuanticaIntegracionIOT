@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Script para verificar el estado después de un tiempo de espera
+echo "=== Verificando el estado de los pods después de un tiempo de espera ==="
+
+# 1. Verificar el estado actual de los pods
+echo "Estado actual de los pods:"
+kubectl get pods -n quantum-access-control
+
+# 2. Revisar detalles de los pods en ContainerCreating
+echo -e "\nDetalles de los pods en ContainerCreating:"
+echo "Performance Monitor:"
+POD_MONITOR=$(kubectl get pods -n quantum-access-control -l app=performance-monitor -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [ -n "$POD_MONITOR" ]; then
+    kubectl describe pod $POD_MONITOR -n quantum-access-control | grep -A 10 "Events:"
+else
+    echo "No se encontró el pod de Performance Monitor"
+fi
+
+echo -e "\nRaspberry Pi Gateway:"
+POD_GATEWAY=$(kubectl get pods -n quantum-access-control -l app=raspberry-pi-gateway -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [ -n "$POD_GATEWAY" ]; then
+    kubectl describe pod $POD_GATEWAY -n quantum-access-control | grep -A 10 "Events:"
+else
+    echo "No se encontró el pod de Raspberry Pi Gateway"
+fi
+
+# 3. Revisar detalles del pod en CrashLoopBackOff
+echo -e "\nDetalles y logs del pod en CrashLoopBackOff:"
+echo "Orion Context Broker:"
+POD_ORION=$(kubectl get pods -n quantum-access-control -l app=orion -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [ -n "$POD_ORION" ]; then
+    kubectl describe pod $POD_ORION -n quantum-access-control | grep -A 10 "Events:"
+    echo -e "\nLogs de Orion:"
+    kubectl logs -n quantum-access-control $POD_ORION --tail=20
+else
+    echo "No se encontró el pod de Orion Context Broker"
+fi
+
+# 4. Verificar recursos disponibles en el nodo
+echo -e "\nRecursos disponibles en la Raspberry Pi:"
+kubectl describe node raspberrypi | grep -A 10 "Allocatable:"
+
+# 5. Sugerencias basadas en el estado
+echo -e "\n=== Sugerencias basadas en el estado actual ==="
+
+echo "1. Si los pods siguen en ContainerCreating después de 5-10 minutos:"
+echo "   - Verifica si hay suficiente espacio en la tarjeta SD:"
+echo "     df -h"
+echo "   - Prueba reiniciando los pods:"
+echo "     kubectl delete pod -n quantum-access-control <nombre-del-pod>"
+
+echo -e "\n2. Para Orion Context Broker en CrashLoopBackOff:"
+echo "   - Reduce los recursos y usa una imagen más ligera:"
+echo "     kubectl patch deployment orion-context-broker -n quantum-access-control -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"orion\",\"image\":\"fiware/orion:2.0.0\",\"resources\":{\"limits\":{\"memory\":\"128Mi\",\"cpu\":\"100m\"},\"requests\":{\"memory\":\"64Mi\",\"cpu\":\"50m\"}}}]}}}}'"
+
+echo -e "\n3. Considera un enfoque más progresivo:"
+echo "   - Desactiva temporalmente los componentes más pesados:"
+echo "     kubectl scale deployment performance-monitor -n quantum-access-control --replicas=0"
+echo "   - Una vez que los componentes básicos estén funcionando, reactívalos uno por uno:"
+echo "     kubectl scale deployment performance-monitor -n quantum-access-control --replicas=1"

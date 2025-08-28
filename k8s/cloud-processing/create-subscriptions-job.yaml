@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-subscriptions
+  namespace: quantum-access-control
+spec:
+  template:
+    spec:
+      containers:
+      - name: create-subscriptions
+        image: curlimages/curl
+        command: ["/scripts/create-subscriptions.sh"]
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+      restartPolicy: OnFailure
+      volumes:
+      - name: scripts
+        configMap:
+          name: subscription-config
+          defaultMode: 0755

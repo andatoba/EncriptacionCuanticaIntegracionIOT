@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: performance-monitor
+  namespace: quantum-access-control
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: performance-monitor
+  template:
+    metadata:
+      labels:
+        app: performance-monitor
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+    spec:
+      containers:
+      - name: performance-monitor
+        image: python:3.9-slim
+        command: ["python", "-u", "/app/performance_monitor.py"]
+        ports:
+        - containerPort: 9100
+          name: metrics
+        volumeMounts:
+        - name: monitor-code
+          mountPath: /app
+      volumes:
+      - name: monitor-code
+        configMap:
+          name: performance-monitor-code

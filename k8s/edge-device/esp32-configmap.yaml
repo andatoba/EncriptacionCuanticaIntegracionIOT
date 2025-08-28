@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: esp32-config
+  namespace: quantum-access-control
+data:
+  config.json: |
+    {
+      "mqtt_broker": "mqtt-broker.quantum-access-control.svc.cluster.local",
+      "mqtt_port": 1883,
+      "mqtt_topic": "qsensor/rfid",
+      "device_id": "esp32-rfid-1",
+      "simulation_interval_ms": 5000
+    }

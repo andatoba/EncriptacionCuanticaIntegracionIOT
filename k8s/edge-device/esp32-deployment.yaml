@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esp32-simulator
+  namespace: quantum-access-control
+  labels:
+    app: esp32-simulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: esp32-simulator
+  template:
+    metadata:
+      labels:
+        app: esp32-simulator
+    spec:
+      containers:
+      - name: esp32-simulator
+        image: python:3.9-slim
+        command: ["python", "-u", "/app/esp32_simulator.py"]
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+        - name: code-volume
+          mountPath: /app
+        env:
+        - name: LOG_LEVEL
+          value: "INFO"
+      volumes:
+      - name: config-volume
+        configMap:
+          name: esp32-config
+      - name: code-volume
+        configMap:
+          name: esp32-simulator-code

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: draco
+  namespace: quantum-access-control
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: draco
+  template:
+    metadata:
+      labels:
+        app: draco
+    spec:
+      containers:
+      - name: draco
+        image: ging/fiware-draco:1.1.0
+        ports:
+        - containerPort: 5050
+          name: draco-web
+        - containerPort: 8443
+          name: draco-api
+        env:
+        - name: NIFI_WEB_HTTP_PORT
+          value: "5050"
+        resources:
+          limits:
+            memory: 1Gi
+            cpu: "0.5"
+          requests:
+            memory: 512Mi
+            cpu: "0.2"

@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: subscription-config
+  namespace: quantum-access-control
+data:
+  create-subscriptions.sh: |
+    #!/bin/bash
+    
+    # Create a subscription from Orion to Draco
+    curl -v -X POST \
+      'http://orion-context-broker:1026/v2/subscriptions' \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "description": "Notify Draco of all context changes",
+        "subject": {
+          "entities": [
+            {
+              "idPattern": ".*",
+              "typePattern": ".*"
+            }
+          ]
+        },
+        "notification": {
+          "http": {
+            "url": "http://draco:5050/v2/notify"
+          },
+          "attrs": []
+        },
+        "throttling": 5
+      }'
+      
+    echo "Subscription created from Orion to Draco"
+    
+    # Create MongoDB configuration for Draco
+    # This would normally be done through Draco's UI
+    echo "Please complete MongoDB configuration through the Draco UI"
+    echo "1. Access Draco UI at http://draco:5050"
+    echo "2. Configure MongoDB sink"
+    echo "3. Set database: quantumAccessControl"
+    echo "4. Set collection: accessRecords"

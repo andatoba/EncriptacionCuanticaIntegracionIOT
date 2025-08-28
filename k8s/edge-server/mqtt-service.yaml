@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mqtt-broker
+  namespace: quantum-access-control
+spec:
+  selector:
+    app: raspberry-pi-gateway
+  ports:
+  - port: 1883
+    targetPort: 1883
+    protocol: TCP
+    name: mqtt
+  type: ClusterIP
