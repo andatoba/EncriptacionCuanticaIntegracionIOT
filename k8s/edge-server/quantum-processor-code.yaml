@@ -32,10 +32,8 @@ data:
     orion_url = f"http://{orion_host}:{orion_port}/v2/entities"
     
     # Authorized UUIDs
-    AUTHORIZED_UIDS = [
-        "a1b2c3d4",
-        "e5f6g7h8",
-        "i9j0k1l2",
+    AUTHORIZED_UIDS = ["0A1B2C3D", "4E5F6G7H", "8I9J0K1L"]
+
         # Add more UUIDs here
     ]
     

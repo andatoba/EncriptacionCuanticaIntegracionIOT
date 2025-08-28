@@ -1,0 +1,145 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-processor-code
+  namespace: quantum-access-control
+data:
+  data_processor.py: |
+    #!/usr/bin/env python3
+    
+    import os
+    import json
+    import time
+    import paho.mqtt.client as mqtt
+    import requests
+    import logging
+    from datetime import datetime
+    
+    # Set up logging
+    logging.basicConfig(level=logging.INFO, 
+                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger('data-processor')
+    
+    # MQTT Configuration
+    mqtt_broker = os.environ.get('MQTT_BROKER', 'mqtt-broker.quantum-access-control.svc.cluster.local')
+    mqtt_port = int(os.environ.get('MQTT_PORT', 1883))
+    mqtt_topic = os.environ.get('MQTT_TOPIC', 'qsensor/#')
+    
+    # Orion Context Broker Configuration
+    orion_host = os.environ.get('ORION_HOST', 'orion-context-broker')
+    orion_port = os.environ.get('ORION_PORT', 1026)
+    orion_url = f"http://{orion_host}:{orion_port}/v2/entities"
+    # Log the Orion URL for debugging
+    logger.info(f"Orion URL: {orion_url}")
+    
+    # MongoDB Configuration (for direct access if needed)
+    mongo_host = os.environ.get('MONGO_HOST', 'mongodb.quantum-access-control.svc.cluster.local')
+    mongo_port = int(os.environ.get('MONGO_PORT', 27017))
+    
+    def process_message(msg_payload):
+        """Process message received from MQTT and forward to Orion"""
+        try:
+            # Parse message
+            logger.info("Processing message from MQTT")
+            # Log the original payload for debugging
+            logger.info(f"Original payload: {msg_payload}")
+            
+            try:
+                # Try direct parsing first
+                payload = json.loads(msg_payload)
+            except:
+                try:
+                    # If that fails, try cleaning the payload
+                    cleaned_payload = msg_payload.replace('\n', '').replace('\r', '').strip()
+                    logger.info(f"Cleaned payload: {cleaned_payload}")
+                    payload = json.loads(cleaned_payload)
+                except:
+                    # If both fail, create a simple payload with raw data
+                    logger.warning("JSON parsing failed, creating simple payload")
+                    payload = {
+                        "data": msg_payload,
+                        "device_id": "unknown-device"
+                    }
+            
+            # Extract data and device info
+            encrypted_data = payload.get('data')
+            device_id = payload.get('device_id')
+            
+            # In a real implementation, we would process the data here
+            # For example:
+            # - Decrypt data
+            # - Validate data
+            # - Enrich data with additional information
+            # - Apply business logic
+            
+            # For now, just forward to Orion
+            entity = {
+                "id": f"RFID:{device_id}:{datetime.now().isoformat()}",
+                "type": "RFIDEvent",
+                "deviceId": {
+                    "type": "Text",
+                    "value": device_id
+                },
+                "timestamp": {
+                    "type": "DateTime",
+                    "value": datetime.now().isoformat()
+                },
+                "rawData": {
+                    "type": "Text",
+                    "value": encrypted_data
+                },
+                "processedBy": {
+                    "type": "Text",
+                    "value": "DataProcessorService"
+                }
+            }
+            
+            # Send to Orion
+            headers = {'Content-Type': 'application/json'}
+            response = requests.post(orion_url, json=entity, headers=headers)
+            if response.status_code in [201, 204]:
+                logger.info(f"Successfully sent entity to Orion: {entity['id']}")
+            else:
+                logger.error(f"Failed to send entity to Orion: {response.status_code} - {response.text}")
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON format in message: {e}")
+        except Exception as e:
+            logger.error(f"Error processing message: {e}")
+    
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            logger.info(f"Connected to MQTT broker at {mqtt_broker}")
+            client.subscribe(mqtt_topic)
+            logger.info(f"Subscribed to topic: {mqtt_topic}")
+        else:
+            logger.error(f"Failed to connect to MQTT broker with result code {rc}")
+    
+    def on_message(client, userdata, msg):
+        logger.info(f"Received message on {msg.topic}")
+        process_message(msg.payload.decode('utf-8'))
+    
+    def main():
+        # Set up MQTT client
+        client = mqtt.Client()
+        client.on_connect = on_connect
+        client.on_message = on_message
+        
+        # Connect to the MQTT broker
+        try:
+            logger.info(f"Connecting to MQTT broker at {mqtt_broker}:{mqtt_port}")
+            client.connect(mqtt_broker, mqtt_port, 60)
+            
+            # Start the MQTT loop
+            client.loop_forever()
+        except Exception as e:
+            logger.error(f"Failed to connect to MQTT broker: {e}")
+            time.sleep(5)  # Wait before retrying
+    
+    if __name__ == "__main__":
+        while True:
+            try:
+                main()
+            except Exception as e:
+                logger.error(f"Main loop error: {e}")
+                time.sleep(5)  # Wait before restarting

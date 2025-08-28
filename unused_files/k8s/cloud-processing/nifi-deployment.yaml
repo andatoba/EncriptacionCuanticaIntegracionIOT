@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: apache-nifi
-        image: apache/nifi:1.15.0
+        image: emqx/nifi:1.13.2-arm64v8
         ports:
         - containerPort: 8080
         env:

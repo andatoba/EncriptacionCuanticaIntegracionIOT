@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mqtt-broker-external
+  namespace: quantum-access-control
+spec:
+  type: NodePort
+  ports:
+  - port: 1883
+    targetPort: 1883
+    nodePort: 31883
+    protocol: TCP
+  selector:
+    app: raspberry-pi-gateway

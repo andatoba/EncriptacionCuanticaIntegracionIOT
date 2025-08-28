@@ -1,17 +1,26 @@
 #!/bin/bash
 
 # Script para agregar un nuevo UUID autorizado al sistema
-# Uso: ./add_authorized_rfid.sh <UUID>
+# Uso: ./add_authorized_rfid.sh <UUID> <nombre_usuario>
 
-# Verificar si se proporcionó un UUID
-if [ -z "$1" ]; then
-  echo "Error: Debe proporcionar el UUID de la tarjeta RFID"
-  echo "Uso: ./add_authorized_rfid.sh <UUID>"
+# Verificar si se proporcionaron los argumentos necesarios
+if [ -z "$1" ] || [ -z "$2" ]; then
+  echo "Error: Debe proporcionar el UUID de la tarjeta RFID y el nombre del usuario"
+  echo "Uso: ./add_authorized_rfid.sh <UUID> <nombre_usuario>"
   exit 1
 fi
 
 UUID=$1
+USER_NAME=$2
+CURRENT_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+VALID_UNTIL=$(date -u -d "+1 year" +"%Y-%m-%dT%H:%M:%SZ")
+
 echo "Agregando UUID: $UUID a la lista de tarjetas autorizadas..."
+echo "Usuario: $USER_NAME"
+echo "Válida hasta: $VALID_UNTIL"
+
+# Registrar la tarjeta en Orion Context Broker
+echo "Registrando tarjeta en Orion Context Broker..."
 
 # Obtener el nombre del pod del procesador cuántico
 POD_NAME=$(kubectl get pods -n quantum-access-control -l app=raspberry-pi-gateway -o jsonpath='{.items[0].metadata.name}')
@@ -38,6 +47,22 @@ print('UUID $UUID agregado a la lista de autorizados')
 \""
 
 # Actualizar el ConfigMap
+
+# Registrar la tarjeta en Orion Context Broker
+kubectl exec -it $POD_NAME -n quantum-access-control -c quantum-processor -- curl -s -X POST \
+  'http://orion-context-broker:1026/v2/entities' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "id": "AuthorizedCard:'$UUID'",
+  "type": "AuthorizedCard",
+  "cardId": {"value": "'$UUID'", "type": "Text"},
+  "userName": {"value": "'$USER_NAME'", "type": "Text"},
+  "createdAt": {"value": "'$CURRENT_DATE'", "type": "DateTime"},
+  "validUntil": {"value": "'$VALID_UNTIL'", "type": "DateTime"},
+  "active": {"value": true, "type": "Boolean"}
+}'
+
+echo "Tarjeta registrada en Orion Context Broker"
 echo "Actualizando ConfigMap con el nuevo UUID autorizado..."
 # Primero guardamos el código actualizado en un archivo local
 kubectl cp $POD_NAME:/tmp/quantum_processor_updated.py -n quantum-access-control quantum_processor_updated.py -c quantum-processor

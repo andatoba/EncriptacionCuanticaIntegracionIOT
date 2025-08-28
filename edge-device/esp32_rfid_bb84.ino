@@ -15,7 +15,7 @@ const char* password = "0925042368";
 
 // MQTT broker
 const char* mqtt_server = "192.168.100.244";  // Raspberry Pi gateway
-const int mqtt_port = 1883;
+const int mqtt_port = 31883;  // Puerto NodePort expuesto
 const char* mqtt_topic = "qsensor/rfid";
 const char* mqtt_username = "mqttuser";
 const char* mqtt_password = "mqttpassword";

@@ -1,0 +1,29 @@
+# Ignorar directorio de archivos no utilizados
+unused_files/
+
+# Ignorar archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar archivos de configuración local
+*.local
+.env
+
+# Ignorar archivos temporales
+*.tmp
+*.bak
+*~
+
+# Ignorar logs
+*.log
+
+# Ignorar archivos de compilación
+*.o
+*.obj
+*.bin
+*.exe
+
+# Ignorar archivos de caché de Python
+__pycache__/
+*.py[cod]
+*$py.class

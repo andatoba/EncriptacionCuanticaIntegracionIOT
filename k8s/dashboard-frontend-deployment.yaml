@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard-frontend
+  namespace: quantum-access-control
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard-frontend
+  template:
+    metadata:
+      labels:
+        app: dashboard-frontend
+    spec:
+      containers:
+      - name: nginx
+        image: arm64v8/nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-conf
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: html-content
+          mountPath: /usr/share/nginx/html/index.html
+          subPath: index.html
+      volumes:
+      - name: nginx-conf
+        configMap:
+          name: dashboard-frontend-code
+          items:
+          - key: nginx.conf
+            path: nginx.conf
+      - name: html-content
+        configMap:
+          name: dashboard-frontend-code
+          items:
+          - key: index.html
+            path: index.html
